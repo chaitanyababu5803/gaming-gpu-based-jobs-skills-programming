@@ -38,3 +38,103 @@ Version Control: Git or Perforce are required for managing large gaming codebase
 NVIDIA Developer
 
 **********************************
+Deep understanding of parallelism (SIMD), memory hierarchy (L1/L2 caches, VRAM), and how data moves between CPU and GP
+To master the flow between CPU and GPU, you must look at how Single Instruction, Multiple Data (SIMD) principles govern both architectures while their memory hierarchies optimize for vastly different goals. 
+1. Parallelism: SIMD vs. SIMT
+While both exploit data-level parallelism, they differ in how they handle instruction streams: 
+CPU SIMD (Multimedia Extensions): Uses wide registers (e.g., 256-bit AVX or 512-bit AVX-512) to process small "chunks" of data. The programmer or compiler must explicitly pack data into these vectors.
+GPU SIMT (Single Instruction, Multiple Threads): An abstraction of SIMD where the hardware manages thousands of individual threads. These threads are grouped into Warps (NVIDIA, 32 threads) or Wavefronts (AMD, 64 threads) that execute one instruction in lockstep.
+Branch Divergence: In SIMD, conditional branches often require masking, where some lanes stay idle. SIMT uses predication and hardware stacks to handle threads taking different paths, though it still suffers performance hits when warps diverge. 
+
+
+2. Memory Hierarchy: Latency vs. Throughput
+The architecture reflects the core mission: CPUs hide latency; GPUs hide it with massive thread counts. 
+Registers: GPUs have massive register files (e.g., 256KB per SM) compared to CPUs to support thousands of active threads.
+L1 Cache / Shared Memory: In GPUs, this is often a configurable on-chip scratchpad used for inter-thread communication. CPUs use L1 primarily as a transparent, ultra-fast data cache.
+L2 Cache: A unified "middle ground." On GPUs, it's the bridge between compute units and VRAM, ensuring frequently reused data (like AI weights) doesn't need to re-fetch from high-latency VRAM.
+VRAM (Global Memory): Uses GDDR6 or HBM to provide massive bandwidth (GB/s), but access can cost 400–800 cycles. CPUs rely on DDR RAM, which has lower bandwidth but much lower latency. 
+
+
+3. Data Movement: The PCIe Bottleneck
+Moving data between the "Host" (CPU) and "Device" (GPU) is the most common bottleneck. 
+The Physical Path: Most data travels via the PCIe bus, which has significantly lower bandwidth than VRAM.
+Direct Memory Access (DMA): GPUs use DMA engines to move large blocks of data without involving the CPU cores, allowing the CPU to continue other tasks during the transfer.
+Pinned Memory: To maximize transfer speed, developers use "pinned" (non-pageable) host memory, which allows the DMA controller to reach the highest theoretical PCIe speeds.
+Unified Memory: Modern frameworks like NVIDIA CUDA allow a single pointer for both CPU and GPU, where the driver handles data migration "on-demand," though this can introduce "page fault" latencies. 
+
+
+Would you like to explore memory coalescing techniques to optimize how your GPU threads pull data from VRAM?
+
+
+***********************************
+Shader Languages:
+HLSL (DirectX): Windows/Xbox ecosystem.
+GLSL (OpenGL/Vulkan): Cross-platform rendering.
+Metal Shading Language: Apple devices. 
+::each separate with basic example code
+These are the three primary languages used to program the graphics pipeline. Each is tailored to specific platforms and application programming interfaces (APIs). 
+**********************************************
+1. HLSL (High-Level Shading Language) 
+Developed by Microsoft, HLSL is the standard for the DirectX ecosystem, covering Windows and Xbox. Its syntax is heavily inspired by C, making it familiar to C++ developers. 
+Daniel Ilett
+Basic Vertex Shader Example:
+hlsl
+struct VS_INPUT {
+    float4 position : POSITION;
+    float4 color : COLOR;
+};
+
+struct VS_OUTPUT {
+    float4 position : SV_POSITION; // System value for position
+    float4 color : COLOR;
+};
+
+VS_OUTPUT main(VS_INPUT input) {
+    VS_OUTPUT output;
+    output.position = input.position;
+    output.color = input.color;
+    return output;
+}
+******************************
+
+2. GLSL (OpenGL Shading Language)
+GLSL is the cross-platform standard used by OpenGL, Vulkan, and WebGL. It is widely used for Android, Linux, and web-based 3D rendering. While it also has a C-style syntax, it uses distinct keywords like in and out for data flow. 
+GPU Shader Tutorial
+
+Basic Vertex Shader Example:
+glsl
+#version 450 // Specify GLSL version
+
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec3 inColor;
+
+layout(location = 0) out vec3 fragColor;
+
+void main() {
+    gl_Position = vec4(inPosition, 1.0); // Built-in output variable
+    fragColor = inColor;
+}
+***************************************
+
+3. Metal Shading Language (MSL)
+MSL is Apple’s proprietary language based on C++14, optimized for performance on iOS, macOS, and iPadOS hardware. It uses modern C++ features like namespaces and templates, along with special attributes like [[position]]. 
+
+Basic Vertex Shader Example:
+cpp
+#include <metal_stdlib>
+using namespace metal;
+
+struct VertexOut {
+    float4 position [[position]];
+    float4 color;
+};
+
+vertex VertexOut vertex_main(uint vertex_id [[vertex_id]], 
+                             constant float3 *vertices [[buffer(0)]]) {
+    VertexOut out;
+    out.position = float4(vertices[vertex_id], 1.0);
+    out.color = float4(1.0, 0.0, 0.0, 1.0); // Fixed red color
+    return out;
+}
+
+
