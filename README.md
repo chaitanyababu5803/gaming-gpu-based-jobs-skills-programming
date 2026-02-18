@@ -65,6 +65,24 @@ end = time.time()
 
 print(f"GPU Time: {end - start:.4f} seconds")
 
+*************************************************************************
+ 1. Create a large array of numbers (10 million elements)
+size = 10000000
+a_cpu = np.random.rand(size).astype(np.float32)
+b_cpu = np.random.rand(size).astype(np.float32)
+
+# 2. Transfer data to the GPU
+a_gpu = cp.asarray(a_cpu)
+b_gpu = cp.asarray(b_cpu)
+
+# 3. Perform addition on the GPU (Parallelized across thousands of cores)
+start = time.time()
+c_gpu = a_gpu + b_gpu
+cp.cuda.Stream.null.synchronize() # Wait for GPU to finish
+end = time.time()
+
+print(f"GPU Time: {end - start:.4f} seconds")
+
 
 Key Concept: This demonstrates parallelism, where the GPU processes all 10 million additions simultaneously instead of one-by-one. 
 
